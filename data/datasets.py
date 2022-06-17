@@ -1,11 +1,8 @@
 #COCO Dataset
 import os
 import json
-from tkinter.ttk import LabeledScale
-import torch
 import pandas as pd
-import numpy as np
-
+from matplotlib.pyplot import axis
 from torch.utils.data import Dataset
 from torchvision.io import read_image
 
@@ -14,6 +11,14 @@ def COCO_collate(data):
     images = [i[0] for i in data]
     labels = [i[1] for i in data]
     return [images, labels]
+
+def convert2YOLOFormat(x, **kwargs):
+    bbox = x
+    bbox[0] = (bbox[0] + (bbox[2] / 2.)) / kwargs['width']
+    bbox[1] = (bbox[1] + (bbox[3] / 2.)) / kwargs['height']
+    bbox[2] /= kwargs['width']
+    bbox[3] /= kwargs['height']
+    return bbox
 
 class COCODataset(Dataset):
     def __init__(self, annotations_file, image_dir, transform=None, target_transform=None):
@@ -37,6 +42,7 @@ class COCODataset(Dataset):
 
         label = self.ann_labels[self.ann_labels["image_id"] == self.img_labels.iloc[idx].id]
         label = label[["category_id", "bbox"]]
+        label['bbox'] = label['bbox'].apply(convert2YOLOFormat, width=self.img_labels.iloc[idx].width, height=self.img_labels.iloc[idx].height)
         label = label.to_dict('records')
         
         if self.transform:
@@ -45,4 +51,9 @@ class COCODataset(Dataset):
             label = self.target_transform(label)
             
         return image, label
+
+    
+
+
+
 
