@@ -29,12 +29,70 @@ def IoU(a,b):
     u = areaBBox(a) + areaBBox(b) - i
     return float(i / u)
 
-def YOLOLoss(x, y, lambda_coord=5, lamda_noobj=.5):
-    xy_loss = F.mse(x[:,:,:2], y[:,:,:2],reduction="sum")
-    wh_loss = F.mse(x[:,:,2:4], y[:,:,2:4],reduction="sum")
-    obj_loss = F.mse(x[:,:,4], y[:,:,4],reduction="sum")
-    noobj_loss = F.mse(x[:,:,4], y[:,:,4],reduction="sum")
-    class_loss = F.mse(x[:,:,5:], y[:,:,5:],reduction="sum")
+def whichCell(x, y, S=7):
+    return int(y / float(1/S)), int(x / float(1/S))
 
-    loss = lambda_coord * (xy_loss + wh_loss) + obj_loss + lamda_noobj * noobj_loss + class_loss
+def YOLOLoss(x, y, lambda_coord=5, lamda_noobj=.5):
+
+    loss = 0
+    expected = torch.Tensor(x.shape)
+
+    # For each batch element
+    for bn, image in enumerate(y):
+
+        obj_mask = torch.zeros((7,7), dtype=torch.bool)
+        bbox_mask = torch.zeros((7,7,2*5+91), dtype=torch.bool)         
+
+        for on, object in enumerate(image): 
+            # Get the cell of the object
+            Srow, Scol = whichCell(object["bbox"][0], object["bbox"][1])
+            obj_mask[Srow][Scol] = 1
+            # Check which prediction has a bigger IoU with the target
+            iou1 = IoU(object["bbox"], x[bn][Srow][Scol][:4])
+            iou2 = IoU(object["bbox"], x[bn][Srow][Scol][5:9])
+
+            if iou1 >= iou2:
+                    expected[bn][Srow][Scol][:4] = torch.tensor(object["bbox"])
+                    expected[bn][Srow][Scol][4] = iou1
+                    expected[bn][Srow][Scol][10:] = 0
+                    expected[bn][Srow][Scol][10 + object["category_id"]] = 1
+                    bbox_mask[Srow][Scol][:5] = True
+            else:
+                    expected[bn][Srow][Scol][5:9] = torch.tensor(object["bbox"])
+                    expected[bn][Srow][Scol][9] = iou2
+                    expected[bn][Srow][Scol][10:] = 0
+                    expected[bn][Srow][Scol][10 + object["category_id"]] = 1
+                    bbox_mask[Srow][Scol][5:10] = True
+        
+        # This is so confusing!!
+        # We remove all the useless bounding boxes using a mask
+        # The resulted tensor is reshaped (#objects,[x,y,w,h,c])
+        n_predictions = int(expected[bn][bbox_mask].shape[0] / 5)
+
+        xy_loss = F.mse_loss(expected[bn][bbox_mask].view(n_predictions,5)[:,:2], 
+                             x[bn][bbox_mask].view(n_predictions,5)[:,:2],
+                             reduction="sum")
+
+        wh_loss = F.mse_loss(torch.sqrt(expected[bn][bbox_mask].view(n_predictions,5)[:,2:4]), 
+                             torch.sqrt(x[bn][bbox_mask].view(n_predictions,5)[:,2:4]),
+                             reduction="sum")
+
+        obj_loss = F.mse_loss(expected[bn][bbox_mask].view(n_predictions,5)[:,4], 
+                              x[bn][bbox_mask].view(n_predictions,5)[:,4],
+                              reduction="sum")
+
+        inverse_bbox_mask = bbox_mask
+        inverse_bbox_mask[:,:,:10] = ~inverse_bbox_mask[:,:,:10]
+        noobj_loss = F.mse_loss(torch.zeros(7*7*2-n_predictions), 
+                                x[bn][inverse_bbox_mask].view(7*7*2-n_predictions,5)[:,4],
+                                reduction="sum")
+    
+        class_loss = F.mse_loss(expected[bn][obj_mask][:,10:], 
+                                expected[bn][obj_mask][:,10:],
+                                reduction="sum")
+
+        # Total loss / batch size
+        loss += (lambda_coord * (xy_loss + wh_loss) + obj_loss + lamda_noobj * noobj_loss + class_loss) / x.shape[0]
+
     return loss
+
