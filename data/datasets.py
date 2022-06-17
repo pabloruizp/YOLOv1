@@ -45,6 +45,9 @@ class COCODataset(Dataset):
         label['bbox'] = label['bbox'].apply(convert2YOLOFormat, width=self.img_labels.iloc[idx].width, height=self.img_labels.iloc[idx].height)
         label = label.to_dict('records')
         
+        for _ in range(7*7*2 - len(label)):
+            label.append({})
+        
         if self.transform:
             image = self.transform(image)
         if self.target_transform:

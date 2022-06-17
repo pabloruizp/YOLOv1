@@ -44,6 +44,8 @@ def YOLOLoss(x, y, lambda_coord=5, lamda_noobj=.5):
         bbox_mask = torch.zeros((7,7,2*5+91), dtype=torch.bool)         
 
         for on, object in enumerate(image): 
+            if "bbox" not in object:
+                continue
             # Get the cell of the object
             Srow, Scol = whichCell(object["bbox"][0], object["bbox"][1])
             obj_mask[Srow][Scol] = 1
