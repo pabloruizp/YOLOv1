@@ -1,6 +1,7 @@
 #COCO Dataset
 import os
 import json
+import torch
 import pandas as pd
 from matplotlib.pyplot import axis
 from torch.utils.data import Dataset
@@ -8,7 +9,7 @@ from torchvision.io import read_image
 
 # Custom collate function for correctly returning labels
 def COCO_collate(data):
-    images = [i[0] for i in data]
+    images = torch.stack([i[0] for i in data])
     labels = [i[1] for i in data]
     return [images, labels]
 
@@ -39,6 +40,8 @@ class COCODataset(Dataset):
     def __getitem__(self, idx): 
         img_path = os.path.join(self.image_dir, self.img_labels.iloc[idx]["file_name"])
         image = read_image(img_path)
+        image = image.float()
+        image /= 255
 
         label = self.ann_labels[self.ann_labels["image_id"] == self.img_labels.iloc[idx].id]
         label = label[["category_id", "bbox"]]
