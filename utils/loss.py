@@ -72,15 +72,15 @@ def YOLOLoss(x, y, lambda_coord=5, lamda_noobj=.5):
         n_predictions = int(expected[bn][bbox_mask].shape[0] / 5)
 
         xy_loss = F.mse_loss(expected[bn][bbox_mask].view(n_predictions,5)[:,:2], 
-                             x[bn][bbox_mask].view(n_predictions,5)[:,:2],
+                             x[bn][bbox_mask.clone()].view(n_predictions,5)[:,:2],
                              reduction="sum")
 
         wh_loss = F.mse_loss(torch.sqrt(expected[bn][bbox_mask].view(n_predictions,5)[:,2:4]), 
-                             torch.sqrt(x[bn][bbox_mask].view(n_predictions,5)[:,2:4]),
+                             torch.sqrt(x[bn][bbox_mask.clone()].view(n_predictions,5)[:,2:4]),
                              reduction="sum")
 
         obj_loss = F.mse_loss(expected[bn][bbox_mask].view(n_predictions,5)[:,4], 
-                              x[bn][bbox_mask].view(n_predictions,5)[:,4],
+                              x[bn][bbox_mask.clone()].view(n_predictions,5)[:,4],
                               reduction="sum")
 
         inverse_bbox_mask = bbox_mask
