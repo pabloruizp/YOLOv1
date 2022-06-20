@@ -4,8 +4,9 @@ from torch.utils.data import DataLoader
 from utils.loss import YOLOLoss
 from models.vgg16 import YOLOVGG16
 from data.datasets import COCODataset, COCO_collate
+import utils.logger
 
-torch.autograd.set_detect_anomaly(True)
+logger = utils.logger.Logger('YOLOv1')
 
 # Using Apple Metal to accelerate the training
 device = "mps" if torch.backends.mps.is_available() else "cpu"
@@ -20,6 +21,8 @@ def train(dataloader, model, loss_fn, optimizer):
         # Compute prediction error
         pred = model(X)
         loss = loss_fn(pred, y)
+
+        logger.log(loss=loss)
 
         # Backpropagation
         optimizer.zero_grad()
@@ -54,6 +57,14 @@ optimizer = torch.optim.Adam(model.head.parameters())
 
 
 epochs = 5
+
+logger.config = {
+  "learning_rate": 0.001,
+  "epochs": epochs,
+  "batch_size": batch_size
+}
+
+logger.watch(model)
 
 for e in range(epochs):
     print(f"Epoch {e+1}\n-------------------------------")
