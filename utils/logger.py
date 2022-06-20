@@ -10,7 +10,6 @@ class Logger:
         wandb.config = kwargs
 
     def log(self, **kwargs):
-        print(kwargs)
         wandb.log(kwargs)
     
     def watch(self, model):
