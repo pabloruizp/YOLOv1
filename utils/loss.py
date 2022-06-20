@@ -32,7 +32,8 @@ def IoU(a,b):
 def whichCell(x, y, S=7):
     return int(y / float(1/S)), int(x / float(1/S))
 
-def YOLOLoss(x, y, lambda_coord=5, lamda_noobj=.5):
+# This is calculated assuming always a B=2
+def YOLOLoss(x, y, classes, S=7, B=2, lambda_coord=5, lamda_noobj=.5):
 
     loss = 0
     expected = torch.Tensor(x.shape)
@@ -40,14 +41,14 @@ def YOLOLoss(x, y, lambda_coord=5, lamda_noobj=.5):
     # For each batch element
     for bn, image in enumerate(y):
 
-        obj_mask = torch.zeros((7,7), dtype=torch.bool)
-        bbox_mask = torch.zeros((7,7,2*5+91), dtype=torch.bool)         
+        obj_mask = torch.zeros((S,S), dtype=torch.bool)
+        bbox_mask = torch.zeros((S,S,B*5+classes), dtype=torch.bool)         
 
         for on, object in enumerate(image): 
             if "bbox" not in object:
                 continue
             # Get the cell of the object
-            Srow, Scol = whichCell(object["bbox"][0], object["bbox"][1])
+            Srow, Scol = whichCell(object["bbox"][0], object["bbox"][1], S=S)
             obj_mask[Srow][Scol] = 1
             # Check which prediction has a bigger IoU with the target
             iou1 = IoU(object["bbox"], x[bn][Srow][Scol][:4])
@@ -85,8 +86,8 @@ def YOLOLoss(x, y, lambda_coord=5, lamda_noobj=.5):
 
         inverse_bbox_mask = bbox_mask
         inverse_bbox_mask[:,:,:10] = ~inverse_bbox_mask[:,:,:10]
-        noobj_loss = F.mse_loss(torch.zeros(7*7*2-n_predictions), 
-                                x[bn][inverse_bbox_mask].view(7*7*2-n_predictions,5)[:,4],
+        noobj_loss = F.mse_loss(torch.zeros(S*S*B-n_predictions), 
+                                x[bn][inverse_bbox_mask].view(S*S*B-n_predictions,5)[:,4],
                                 reduction="sum")
     
         class_loss = F.mse_loss(expected[bn][obj_mask][:,10:], 

@@ -20,7 +20,7 @@ def train(dataloader, model, loss_fn, optimizer):
 
         # Compute prediction error
         pred = model(X)
-        loss = loss_fn(pred, y)
+        loss = loss_fn(pred, y, classes=model.classes)
 
         logger.log(loss=loss)
 
@@ -43,7 +43,7 @@ batch_size = 16
 train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, collate_fn=COCO_collate)
 
 
-model = YOLOVGG16()
+model = YOLOVGG16(classes=91)
 
 # Freeze backbone layers
 for param in model.backbone.parameters():
