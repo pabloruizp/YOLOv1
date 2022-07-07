@@ -1,12 +1,15 @@
 #COCO Dataset
+import imp
 import os
 import json
 import torch
 import pandas as pd
+import numpy as np
 from matplotlib.pyplot import axis
 from torch.utils.data import Dataset
-from torchvision.io import read_image
+from torchvision.io import read_image, ImageReadMode
 
+# DEPRECATED
 # Custom collate function for correctly returning labels
 def COCO_collate(data):
     images = torch.stack([i[0] for i in data])
@@ -39,18 +42,23 @@ class COCODataset(Dataset):
 
     def __getitem__(self, idx): 
         img_path = os.path.join(self.image_dir, self.img_labels.iloc[idx]["file_name"])
-        image = read_image(img_path)
+        image = read_image(img_path, ImageReadMode.RGB)
         image = image.float()
         image /= 255
 
         label = self.ann_labels[self.ann_labels["image_id"] == self.img_labels.iloc[idx].id]
         label = label[["category_id", "bbox"]]
+        label["category_id"] = label["category_id"].apply(lambda x: [x])
         label['bbox'] = label['bbox'].apply(convert2YOLOFormat, width=self.img_labels.iloc[idx].width, height=self.img_labels.iloc[idx].height)
-        label = label.to_dict('records')
+        label = label["bbox"] + label["category_id"]
+        label = label.tolist()
         
+        #Adding padding to the labels
         for _ in range(7*7*2 - len(label)):
-            label.append({})
+            label.append([-1,-1,-1,-1,-1])
         
+        label = torch.tensor(label)
+
         if self.transform:
             image = self.transform(image)
         if self.target_transform:
