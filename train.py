@@ -19,10 +19,12 @@ batch_size = 16
 epochs = 10
 lr = 1e-4
 weight_decay = 0.0005
+images_path = "/Users/pabloruizponce/Downloads/val2017"
+annotations_path = "/Users/pabloruizponce/Downloads/annotations/instances_val_reduced.json"
 
 
-train_dataset = COCODataset("/Users/pabloruizponce/Downloads/annotations/instances_val_reduced.json", 
-                            "/Users/pabloruizponce/Downloads/val2017", 
+train_dataset = COCODataset(annotations_path, 
+                            images_path, 
                             transform=torchvision.transforms.Compose(
                                 [torchvision.transforms.Resize((416,416)),
                                  torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
