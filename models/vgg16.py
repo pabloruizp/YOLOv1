@@ -14,6 +14,9 @@ class YOLOVGG16(nn.Module):
             nn.Linear(512 * 13 * 13, S * S * (B * 5 + classes)),
             nn.Sigmoid()
         )
+        # Freeze backbone layers
+        for param in self.backbone.parameters():
+            param.requires_grad = False
 
     def forward(self, x):
         features = self.backbone(x)

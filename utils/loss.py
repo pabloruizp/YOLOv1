@@ -1,4 +1,6 @@
+from cmath import exp
 from multiprocessing import reduction
+from traceback import print_tb
 import torch
 import torch.nn.functional as F
 
@@ -35,43 +37,47 @@ def whichCell(x, y, S=7):
 # This is calculated assuming always a B=2
 def YOLOLoss(x, y, classes, S=7, B=2, lambda_coord=5, lamda_noobj=.5):
 
-    loss = 0
+    loss = torch.tensor([0,0,0,0,0,0], dtype=torch.float64)
+    
     expected = torch.Tensor(x.shape)
 
     # For each batch element
     for bn, image in enumerate(y):
-
+        
         obj_mask = torch.zeros((S,S), dtype=torch.bool)
         bbox_mask = torch.zeros((S,S,B*5+classes), dtype=torch.bool)         
-
+        
         for on, object in enumerate(image): 
-            if "bbox" not in object:
+
+            if object[0] < 0:
                 continue
+
             # Get the cell of the object
-            Srow, Scol = whichCell(object["bbox"][0], object["bbox"][1], S=S)
+            Srow, Scol = whichCell(object[0], object[1], S=S)
             obj_mask[Srow][Scol] = 1
             # Check which prediction has a bigger IoU with the target
-            iou1 = IoU(object["bbox"], x[bn][Srow][Scol][:4])
-            iou2 = IoU(object["bbox"], x[bn][Srow][Scol][5:9])
+            iou1 = IoU(object[:4], x[bn][Srow][Scol][:4])
+            iou2 = IoU(object[:4], x[bn][Srow][Scol][5:9])
 
             if iou1 >= iou2:
-                    expected[bn][Srow][Scol][:4] = torch.tensor(object["bbox"])
+                    expected[bn][Srow][Scol][:4] = object[:4]
                     expected[bn][Srow][Scol][4] = iou1
                     expected[bn][Srow][Scol][10:] = 0
-                    expected[bn][Srow][Scol][10 + object["category_id"]] = 1
+                    expected[bn][Srow][Scol][10 + object[4].long()] = 1
                     bbox_mask[Srow][Scol][:5] = True
             else:
-                    expected[bn][Srow][Scol][5:9] = torch.tensor(object["bbox"])
+                    expected[bn][Srow][Scol][5:9] = object[:4]
                     expected[bn][Srow][Scol][9] = iou2
                     expected[bn][Srow][Scol][10:] = 0
-                    expected[bn][Srow][Scol][10 + object["category_id"]] = 1
+                    expected[bn][Srow][Scol][10 + object[4].long()] = 1
                     bbox_mask[Srow][Scol][5:10] = True
+
         
         # This is so confusing!!
         # We remove all the useless bounding boxes using a mask
         # The resulted tensor is reshaped (#objects,[x,y,w,h,c])
         n_predictions = int(expected[bn][bbox_mask].shape[0] / 5)
-
+        
         xy_loss = F.mse_loss(expected[bn][bbox_mask].view(n_predictions,5)[:,:2], 
                              x[bn][bbox_mask.clone()].view(n_predictions,5)[:,:2],
                              reduction="sum")
@@ -91,11 +97,17 @@ def YOLOLoss(x, y, classes, S=7, B=2, lambda_coord=5, lamda_noobj=.5):
                                 reduction="sum")
     
         class_loss = F.mse_loss(expected[bn][obj_mask][:,10:], 
-                                expected[bn][obj_mask][:,10:],
+                                x[bn][obj_mask][:,10:],
                                 reduction="sum")
 
-        # Total loss / batch size
-        loss += (lambda_coord * (xy_loss + wh_loss) + obj_loss + lamda_noobj * noobj_loss + class_loss) / x.shape[0]
 
+        # Total loss / batch size
+        loss[0] += (lambda_coord * (xy_loss + wh_loss) + obj_loss + lamda_noobj * noobj_loss + class_loss) / x.shape[0]
+        loss[1] += xy_loss / x.shape[0]
+        loss[2] += wh_loss / x.shape[0]
+        loss[3] += obj_loss / x.shape[0]
+        loss[4] += noobj_loss / x.shape[0]
+        loss[5] += class_loss / x.shape[0]
+    
     return loss
 

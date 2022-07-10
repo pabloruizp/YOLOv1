@@ -1,11 +1,8 @@
 #COCO Dataset
-import imp
 import os
 import json
 import torch
 import pandas as pd
-import numpy as np
-from matplotlib.pyplot import axis
 from torch.utils.data import Dataset
 from torchvision.io import read_image, ImageReadMode
 
