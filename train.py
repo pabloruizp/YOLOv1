@@ -54,7 +54,7 @@ def train(dataloader, model, loss_fn, optimizer, epoch_n=0):
 
     with tqdm(dataloader, unit="batch", bar_format='{l_bar}{bar:20}{r_bar}{bar:-10b}') as tepoch:
         
-        e_loss = torch.tensor([0,0,0,0,0,0], dtype=torch.float64)
+        e_loss = torch.tensor([0,0,0,0,0,0], dtype=torch.float64).to(device)
         
         for batch, (X, y) in enumerate(tepoch):
 
@@ -65,7 +65,7 @@ def train(dataloader, model, loss_fn, optimizer, epoch_n=0):
 
             # Compute prediction error
             pred = model(X)
-            loss = loss_fn(pred, y, classes=model.classes)
+            loss = loss_fn(pred, y, device, classes=model.classes)
             e_loss += loss / size
             
 

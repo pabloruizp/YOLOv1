@@ -35,17 +35,17 @@ def whichCell(x, y, S=7):
     return int(y / float(1/S)), int(x / float(1/S))
 
 # This is calculated assuming always a B=2
-def YOLOLoss(x, y, classes, S=7, B=2, lambda_coord=5, lamda_noobj=.5):
+def YOLOLoss(x, y, device, classes, S=7, B=2, lambda_coord=5, lamda_noobj=.5):
 
-    loss = torch.tensor([0,0,0,0,0,0], dtype=torch.float64)
+    loss = torch.tensor([0,0,0,0,0,0], dtype=torch.float64).to(device)
     
-    expected = torch.Tensor(x.shape)
+    expected = torch.Tensor(x.shape).to(device)
 
     # For each batch element
     for bn, image in enumerate(y):
         
-        obj_mask = torch.zeros((S,S), dtype=torch.bool)
-        bbox_mask = torch.zeros((S,S,B*5+classes), dtype=torch.bool)         
+        obj_mask = torch.zeros((S,S), dtype=torch.bool).to(device)
+        bbox_mask = torch.zeros((S,S,B*5+classes), dtype=torch.bool).to(device)      
         
         for on, object in enumerate(image): 
 
@@ -92,7 +92,7 @@ def YOLOLoss(x, y, classes, S=7, B=2, lambda_coord=5, lamda_noobj=.5):
 
         inverse_bbox_mask = bbox_mask
         inverse_bbox_mask[:,:,:10] = ~inverse_bbox_mask[:,:,:10]
-        noobj_loss = F.mse_loss(torch.zeros(S*S*B-n_predictions), 
+        noobj_loss = F.mse_loss(torch.zeros(S*S*B-n_predictions).to(device), 
                                 x[bn][inverse_bbox_mask].view(S*S*B-n_predictions,5)[:,4],
                                 reduction="sum")
     
