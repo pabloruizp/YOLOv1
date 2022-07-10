@@ -1,0 +1,5 @@
+pandas==1.4.3
+torch==1.13.0.dev20220706
+torchsummary==1.5.1
+torchvision==0.14.0.dev20220706
+tqdm==4.64.0
