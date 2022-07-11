@@ -24,6 +24,8 @@ images_path = "/Users/pabloruizponce/Downloads/val2017"
 annotations_path = "/Users/pabloruizponce/Downloads/annotations/instances_val_reduced.json"
 
 
+
+
 train_dataset = COCODataset(annotations_path, 
                             images_path, 
                             transform=torchvision.transforms.Compose(
@@ -37,7 +39,11 @@ train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuf
 
 model = YOLOVGG16(classes=3).to(device)
 loss_fn = YOLOLoss
-optimizer = torch.optim.Adam(model.head.parameters(), lr=lr, weight_decay=weight_decay)
+optimizer = torch.optim.SGD(model.head.parameters(), lr=lr, weight_decay=weight_decay, momentum=0.9)
+scheduler1 = torch.optim.lr_scheduler.ConstantLR(optimizer=optimizer,factor=0.2,total_iters=50)
+scheduler2 = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer,gamma=0.1,milestones=[75,105,135])
+scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer=optimizer, schedulers=[scheduler1,scheduler2], milestones=[50])
+
 
 logger.config = {
   "learning_rate": lr,
@@ -102,3 +108,5 @@ if __name__ == "__main__":
     for e in range(epochs):
         train(train_dataloader, model, loss_fn, optimizer, epoch_n=e+1)
         torch.save(model.state_dict(), "./YOLOoutputs/" + logger.name + "/epoch-" + str(e+1) + ".pth")
+        scheduler.step()
+        print("LAST LR: ",scheduler.get_last_lr())
