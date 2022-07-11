@@ -1,5 +1,6 @@
 import torchvision
 import torch
+import os
 from torch.utils.data import DataLoader
 from utils.loss import YOLOLoss
 from models.vgg16 import YOLOVGG16
@@ -92,5 +93,12 @@ def train(dataloader, model, loss_fn, optimizer, epoch_n=0):
 
 if __name__ == "__main__":
     summary(model, (3, 416, 416))
+
+    if not os.path.exists("./YOLOoutputs"):
+        os.makedirs("./YOLOoutputs")
+
+    os.makedirs("./YOLOoutputs/" + logger.name)
+
     for e in range(epochs):
         train(train_dataloader, model, loss_fn, optimizer, epoch_n=e+1)
+        torch.save(model.state_dict(), "./YOLOoutputs/" + logger.name + "/epoch-" + str(e+1) + ".pth")

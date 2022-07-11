@@ -5,6 +5,7 @@ import wandb
 class Logger:
     def __init__(self, projectName):
         wandb.init(project=projectName)
+        self.name = wandb.run.name
     
     def config(self, **kwargs):
         wandb.config = kwargs
@@ -14,6 +15,7 @@ class Logger:
     
     def watch(self, model):
         wandb.watch(model)
+
 
 
         
