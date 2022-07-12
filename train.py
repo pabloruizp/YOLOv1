@@ -40,7 +40,11 @@ train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuf
 model = YOLOVGG16(classes=3).to(device)
 loss_fn = YOLOLoss
 optimizer = torch.optim.SGD(model.head.parameters(), lr=lr, weight_decay=weight_decay, momentum=0.9)
-scheduler1 = torch.optim.lr_scheduler.ConstantLR(optimizer=optimizer,factor=0.2,total_iters=50)
+
+
+
+# 1e-3 = 1e-4 * X^50   -> X = 10 ** (1./50.)
+scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,gamma=(10 ** (1./50.)),step_size=1)
 scheduler2 = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer,gamma=0.1,milestones=[75,105,135])
 scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer=optimizer, schedulers=[scheduler1,scheduler2], milestones=[50])
 
@@ -81,19 +85,16 @@ def train(dataloader, model, loss_fn, optimizer, epoch_n=0):
             loss[0].backward()
             optimizer.step()
 
-            tepoch.set_postfix(loss=e_loss[0].item(), 
-                               xy_loss=e_loss[1].item(), 
-                               wh_loss=e_loss[2].item(), 
-                               obj_loss=e_loss[3].item(),
-                               noobj_loss=e_loss[4].item(),
-                               class_loss=e_loss[5].item())
+            tepoch.set_postfix(loss=e_loss[0].item(),lr=scheduler.get_last_lr()[0])
 
-        logger.log(loss=e_loss[0])
-        logger.log(xy_loss=e_loss[1])
-        logger.log(wh_loss=e_loss[2])
-        logger.log(obj_loss=e_loss[3])
-        logger.log(noobj_loss=e_loss[4])
-        logger.log(class_loss=e_loss[5])
+        logger.log(loss=e_loss[0],
+                   xy_loss=e_loss[1], 
+                   wh_loss=e_loss[2], 
+                   obj_loss=e_loss[3], 
+                   noobj_loss=e_loss[4], 
+                   class_loss=e_loss[5],
+                   lr=scheduler.get_last_lr()[0])
+
 
 
 
@@ -109,4 +110,3 @@ if __name__ == "__main__":
         train(train_dataloader, model, loss_fn, optimizer, epoch_n=e+1)
         torch.save(model.state_dict(), "./YOLOoutputs/" + logger.name + "/epoch-" + str(e+1) + ".pth")
         scheduler.step()
-        print("LAST LR: ",scheduler.get_last_lr())
