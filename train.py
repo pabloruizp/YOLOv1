@@ -36,17 +36,6 @@ parser.add_argument("--annotations", "-a", type=str, help="Path of the expected 
 parser.add_argument("--logger", "-l", action="store_true", help="Log the training data")
 
 
-train_dataset = COCODataset(annotations_path, 
-                            images_path, 
-                            transform=torchvision.transforms.Compose(
-                                [torchvision.transforms.Resize((416,416)),
-                                 torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                                                  std=[0.229, 0.224, 0.225])
-                                ]))
-
-train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-
-
 model = YOLOVGG16(classes=3).to(device)
 loss_fn = YOLOLoss
 optimizer = torch.optim.SGD(model.head.parameters(), lr=lr, weight_decay=weight_decay, momentum=0.9)
@@ -141,6 +130,17 @@ if __name__ == "__main__":
         os.makedirs("./YOLOoutputs")
 
     os.makedirs("./YOLOoutputs/" + (logger.name if logger != None else run_name))
+
+
+    train_dataset = COCODataset(annotations_path, 
+                                images_path, 
+                                transform=torchvision.transforms.Compose(
+                                    [torchvision.transforms.Resize((416,416)),
+                                    torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                    std=[0.229, 0.224, 0.225])
+                                    ]))
+
+    train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 
     for e in range(epochs):
         train(train_dataloader, 
