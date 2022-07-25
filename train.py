@@ -22,7 +22,7 @@ from tqdm import tqdm
 device = "cuda" if torch.cuda.is_available() else "cpu"
 batch_size = 16
 epochs = 10
-lr = 1e-4
+initial_lr = 1e-4
 weight_decay = 0.0005
 images_path = "/Users/pabloruizponce/Downloads/val2017"
 annotations_path = "/Users/pabloruizponce/Downloads/annotations/instances_val_reduced.json"
@@ -39,15 +39,34 @@ parser.add_argument("--save", "-s", type=int, default=1, help="Checkpoint save r
 
 model = YOLOVGG16(classes=3).to(device)
 loss_fn = YOLOLoss
-optimizer = torch.optim.SGD(model.head.parameters(), lr=lr, weight_decay=weight_decay, momentum=0.9)
+optimizer = torch.optim.SGD(model.head.parameters(), lr=initial_lr, weight_decay=weight_decay, momentum=0.9)
+
+
 
 # 1e-3 = 1e-4 * X^50   -> X = 10 ** (1./50.)
-scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,gamma=(10 ** (1./50.)),step_size=1)
-scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,gamma=1,step_size=75)
-scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer,gamma=0.1,milestones=[30,60])
-scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer=optimizer, schedulers=[scheduler1,scheduler2,scheduler3], milestones=[50, 125])
+# SecuentialLR not works in the way we want. We want to keep lr from the last epoch of the previous scheduler
+#scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,gamma=(10 ** (1./50.)),step_size=1)
+#scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,gamma=1,step_size=75)
+#scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer,gamma=0.1,milestones=[30,60])
+#scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer=optimizer, schedulers=[scheduler1,scheduler2,scheduler3], milestones=[50, 125])
 
+# New lr scheduler
+# Idea stolen from: https://github.com/motokimura/yolo_v1_pytorch/blob/master/train_yolo.py
+lr = initial_lr
 
+def update_lr(optimizer, epoch):
+    global lr
+    if epoch > 0 and epoch < 50:
+        lr *= (10 ** (1./49.))
+    elif epoch == 74:
+        lr = initial_lr
+    elif epoch == 104:
+        lr *= 0.1
+    else:
+        return
+
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
 
 
 def train(dataloader, model, loss_fn, optimizer, epoch_n=0, logger=None):
@@ -76,7 +95,7 @@ def train(dataloader, model, loss_fn, optimizer, epoch_n=0, logger=None):
             loss[0].backward()
             optimizer.step()
 
-            tepoch.set_postfix(loss=e_loss[0].item(),lr=scheduler.get_last_lr()[0])
+            tepoch.set_postfix(loss=e_loss[0].item(),lr=lr)
 
         if logger != None:
             logger.log(loss=e_loss[0],
@@ -85,7 +104,7 @@ def train(dataloader, model, loss_fn, optimizer, epoch_n=0, logger=None):
                     obj_loss=e_loss[3], 
                     noobj_loss=e_loss[4], 
                     class_loss=e_loss[5],
-                    lr=scheduler.get_last_lr()[0])
+                    lr=lr)
 
 
 
@@ -152,8 +171,8 @@ if __name__ == "__main__":
               epoch_n=e+1, 
               logger=(logger if logger != None else None))
 
-        if e % args.save == 0:
+        if e+1 % args.save == 0:
             torch.save(model.state_dict(), 
                        "./YOLOoutputs/" + (logger.name if logger != None else run_name) + "/epoch-" + str(e+1).zfill(4) + ".pth")
 
-        scheduler.step()
+        update_lr(optimizer=optimizer, epoch=e+1)
