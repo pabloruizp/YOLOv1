@@ -34,6 +34,7 @@ parser.add_argument("--epochs", "-e", type=int, help="Number of epochs")
 parser.add_argument("--images", "-i", type=str, help="Path of the input images")
 parser.add_argument("--annotations", "-a", type=str, help="Path of the expected annotations")
 parser.add_argument("--logger", "-l", action="store_true", help="Log the training data")
+parser.add_argument("--save", "-s", type=int, default=1, help="Checkpoint save rate")
 
 
 model = YOLOVGG16(classes=3).to(device)
@@ -42,8 +43,9 @@ optimizer = torch.optim.SGD(model.head.parameters(), lr=lr, weight_decay=weight_
 
 # 1e-3 = 1e-4 * X^50   -> X = 10 ** (1./50.)
 scheduler1 = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,gamma=(10 ** (1./50.)),step_size=1)
-scheduler2 = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer,gamma=0.1,milestones=[75,105,135])
-scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer=optimizer, schedulers=[scheduler1,scheduler2], milestones=[50])
+scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,gamma=1,step_size=75)
+scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer,gamma=0.1,milestones=[30,60])
+scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer=optimizer, schedulers=[scheduler1,scheduler2,scheduler3], milestones=[50, 125])
 
 
 
@@ -58,7 +60,7 @@ def train(dataloader, model, loss_fn, optimizer, epoch_n=0, logger=None):
         
         for batch, (X, y) in enumerate(tepoch):
 
-            tepoch.set_description(f"Epoch {epoch_n}")
+            tepoch.set_description(f"Epoch {str(epoch_n).zfill(4)}")
 
             X = X.to(device) 
             y = y.to(device)
@@ -150,7 +152,8 @@ if __name__ == "__main__":
               epoch_n=e+1, 
               logger=(logger if logger != None else None))
 
-        torch.save(model.state_dict(), 
-                   "./YOLOoutputs/" + (logger.name if logger != None else run_name) + "/epoch-" + str(e+1) + ".pth")
+        if e % args.save == 0:
+            torch.save(model.state_dict(), 
+                       "./YOLOoutputs/" + (logger.name if logger != None else run_name) + "/epoch-" + str(e+1).zfill(4) + ".pth")
 
         scheduler.step()
