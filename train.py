@@ -31,8 +31,8 @@ log = False
 parser = argparse.ArgumentParser(description='Training arguments')
 parser.add_argument("--batch-size", "-b", type=int, help="Batch size")
 parser.add_argument("--epochs", "-e", type=int, help="Number of epochs")
-parser.add_argument("--images", "-i", type=int, help="Path of the input images")
-parser.add_argument("--annotations", "-a", type=int, help="Path of the expected annotations")
+parser.add_argument("--images", "-i", type=str, help="Path of the input images")
+parser.add_argument("--annotations", "-a", type=str, help="Path of the expected annotations")
 parser.add_argument("--logger", "-l", action="store_true", help="Log the training data")
 
 

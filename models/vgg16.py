@@ -7,7 +7,9 @@ class YOLOVGG16(nn.Module):
         self.classes = classes
         self.S = S
         self.B = B
-        self.backbone = torch.hub.load('pytorch/vision:v0.10.0', 'vgg16', weights="VGG16_Weights.IMAGENET1K_V1").features
+        #self.backbone = torch.hub.load('pytorch/vision:v0.10.0', 'vgg16', weights="VGG16_Weights.IMAGENET1K_V1").features
+        # For compatibility with torch version in Google Colab
+        self.backbone = torch.hub.load('pytorch/vision:v0.10.0', 'vgg16', pretrained=True).features
         self.head = nn.Sequential( 
             nn.Flatten(),
             nn.Linear(512 * 13 * 13, S * S * (B * 5 + classes)),
