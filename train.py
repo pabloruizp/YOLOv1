@@ -56,11 +56,11 @@ lr = initial_lr
 
 def update_lr(optimizer, epoch):
     global lr
-    if epoch > 0 and epoch < 50:
-        lr *= (10 ** (1./49.))
-    elif epoch == 74:
-        lr = initial_lr
-    elif epoch == 104:
+    if epoch > 0 and epoch < 100:
+        lr *= (100 ** (1./99.))
+    elif epoch == 174:
+        lr = initial_lr * 0.1
+    elif epoch == 204:
         lr *= 0.1
     else:
         return
@@ -171,7 +171,7 @@ if __name__ == "__main__":
               epoch_n=e+1, 
               logger=(logger if logger != None else None))
 
-        if e+1 % args.save == 0:
+        if (e+1) % args.save == 0:
             torch.save(model.state_dict(), 
                        "./YOLOoutputs/" + (logger.name if logger != None else run_name) + "/epoch-" + str(e+1).zfill(4) + ".pth")
 
